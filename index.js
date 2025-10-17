@@ -1,4 +1,11 @@
-    const apiKey = "88a96b7da2208820a4b66471bcb2af02";
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const supabaseUrl = 'https://qhulkelhbhllcwwandes.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWxrZWxoYmhsbGN3d2FuZGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTg2MjUsImV4cCI6MjA3NjI5NDYyNX0.42UGFleZGnrE0GCc3F8jU69ernTCRu6np-uqDD5G2Rk';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+
+   const apiKey = "88a96b7da2208820a4b66471bcb2af02";
     const baseURL = window.location.origin;
     let stationMarkers = {};
     let userMarkers = [];
@@ -7,6 +14,7 @@
     let watchId = null;
     let userLocationMarker = null;
     let userCircle = null;
+    
 
     // === Initialize Map ===
     const map = L.map("map").setView([14.8479, 120.8287], 14);
