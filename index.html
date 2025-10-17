@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="HydroPole - Real-time flood monitoring system for Hagonoy, Bulacan. Track water levels and receive flood alerts.">
+  <meta name="keywords" content="flood monitoring, water levels, Hagonoy, Bulacan, hydro pole">
+  <title>HYDRO-POLE - Flood Monitoring System</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Quicksand:wght@500&family=Poppins:wght@600&family=Exo+2:wght@700&display=swap" rel="stylesheet">
+
+  <!-- ✅ Main CSS -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- ✅ Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- ✅ Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo-text">HYDRO-POLE</div>
+      </div>
+      <button id="darkModeToggle">🌙</button>
+    </div>
+  </header>
+
+
+
+  <main class="layout">
+    <!-- Left Panel (Map) -->
+    <section class="panel panel-map">
+      <div class="panel-header">
+        <h2>Flood Monitoring Map</h2>
+      </div>
+      <div class="panel-body">
+        <div class="search">
+          <form id="searchForm">
+            <input id="searchBox" type="text" placeholder="Search location...">
+            <button type="submit">🔍</button>
+          </form>
+          <div id="searchResults"></div>
+        </div>
+        <div id="map" class="map"></div>
+      </div>
+    </section>
+
+    <!-- Right Sidebar (Status, History, Info) -->
+    <aside class="panel sidebar">
+      <!-- Status Panel -->
+      <div class="panel-header">
+        <h2>Status</h2>
+      </div>
+      <div class="panel-body status-panel">
+        <div class="status-item">
+          <strong>Water Level:</strong> 
+          <span id="waterLevel">0</span> ft
+        </div>
+        <div class="status-item">
+          <strong>Status:</strong> 
+          <span id="statusText" class="badge ok">SAFE</span>
+        </div>
+        <div class="status-item">
+          <strong>Last Update:</strong> 
+          <span id="lastUpdate">--:--:--</span>
+        </div>
+      </div>
+
+      <!-- History Panel -->
+      <div class="panel-header">
+        <h2>History (Last 20)</h2>
+      </div>
+      <div class="panel-body history-panel">
+        <ul id="historyList"></ul>
+      </div>
+
+      <!-- About Panel -->
+      <div class="panel-header">
+        <h2>About HydroPole</h2>
+      </div>
+      <div class="panel-body about-panel">
+        <p><b>Creators:</b> Dimaguuipo, Khristian Dayle R.<br>
+         Duhaylungsod, Kim Clint A. <br>
+         Navarro, Christian Joseph B.<br>
+         Ponciano, Adrianne C.<br>
+         Vardeleon, Fritz Ian F.</p>
+        <p><b>Purpose:</b> Flood monitoring and alert system.</p>
+        <p><b>Description:</b> HYDRO-POLE: High-Yield Depth Recognition and Observation Pole with LED Evaluation.</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <p>© 2025 HydroPole Project | Powered by Leaflet</p>
+  </footer>
+
+  <script src="index.js"></script>
+</body>
+</html>
