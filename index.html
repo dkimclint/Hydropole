@@ -1,104 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="HydroPole - Real-time flood monitoring system for Hagonoy, Bulacan. Track water levels and receive flood alerts.">
-  <meta name="keywords" content="flood monitoring, water levels, Hagonoy, Bulacan, hydro pole">
-  <title>HYDRO-POLE - Flood Monitoring System</title>
-
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Quicksand:wght@500&family=Poppins:wght@600&family=Exo+2:wght@700&display=swap" rel="stylesheet">
-
-  <!-- ✅ Main CSS -->
-  <link rel="stylesheet" href="./style.css" />
-
-  <!-- ✅ Leaflet Map CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <!-- ✅ Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="HydroPole - Real-time flood monitoring system">
+    <title>HYDRO-POLE - Flood Monitoring System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Quicksand:wght@500&family=Poppins:wght@600&family=Exo+2:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
-
 <body>
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="brand">
-        <div class="logo-text">HYDRO-POLE</div>
-      </div>
-      <button id="darkModeToggle">🌙</button>
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i class="fas fa-water"></i>
+                </div>
+                <div class="logo-text">HYDRO-POLE</div>
+            </div>
+            <div class="header-controls">
+                <div class="search-toggle-container">
+                    <button id="searchToggle" class="control-btn" title="Search Location">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div class="search-container">
+                        <form id="searchForm">
+                            <div class="search-input-group">
+                                <input id="searchBox" type="text" placeholder="Search for locations...">
+                                <button type="submit" class="search-submit">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div id="searchResults"></div>
+                    </div>
+                </div>
+                
+                <div class="search-toggle-container">
+                    <button id="searchStationBtn" class="control-btn" title="Search Monitoring Stations">
+                        <i class="fas fa-satellite"></i>
+                    </button>
+                    <div class="station-search-container">
+                        <form id="stationSearchForm">
+                            <div class="search-input-group">
+                                <input id="stationSearchBox" type="text" placeholder="Search stations (e.g., HYDROPOLE_001)...">
+                                <button type="submit" class="search-submit">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                        <div id="stationSearchResults"></div>
+                    </div>
+                </div>
+                
+                <button id="darkModeToggle" class="control-btn" title="Dark Mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Desktop Map Controls -->
+    <div class="map-controls desktop-only">
+        <button id="zoomInBtn" class="map-control-btn" title="Zoom In">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button id="zoomOutBtn" class="map-control-btn" title="Zoom Out">
+            <i class="fas fa-minus"></i>
+        </button>
+        <button id="desktopMapLocationBtn" class="map-control-btn" title="My Location">
+            <i class="fas fa-location-arrow"></i>
+        </button>
     </div>
-  </header>
 
+    <main class="layout">
+        <div id="map" class="map-background"></div>
+        
+        <!-- Desktop Dashboard Panels -->
+        <div class="dashboard desktop-dashboard">
+            <!-- Stations Panel -->
+            <div class="dashboard-panel stations-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-satellite"></i>
+                        <span>Monitoring Stations</span>
+                    </div>
+                    <button class="panel-toggle">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div class="stations-header">
+                        <div class="stations-count" id="stationsCount">Loading stations...</div>
+                        <button id="refreshStations" class="refresh-btn" title="Refresh Stations">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="stations-list" id="stationsList">
+                        <div class="loading-stations">Loading monitoring stations...</div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Selected Station Panel -->
+            <div class="dashboard-panel selected-station-panel" id="selectedStationPanel" style="display: none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-tint"></i>
+                        <span id="selectedStationTitle">Station Data</span>
+                    </div>
+                    <button class="panel-close" id="closeStationPanel">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div class="station-header">
+                        <div class="station-name-large" id="selectedStationName">--</div>
+                        <div class="station-location" id="selectedStationLocation">--</div>
+                        <div class="station-id" id="selectedStationId">ID: --</div>
+                    </div>
+                    
+                    <div class="water-level-display">
+                        <div class="data-section">
+                            <div class="data-label">Current Water Level</div>
+                            <div class="data-value" id="selectedStationWaterLevel">--</div>
+                            <div class="data-badge">
+                                <span class="badge" id="selectedStationStatus">--</span>
+                            </div>
+                        </div>
+                        
+                        <div class="data-section">
+                            <div class="data-label">Last Update</div>
+                            <div class="data-value" id="selectedStationLastUpdate">--</div>
+                        </div>
+                        
+                        <div class="data-section">
+                            <div class="data-label">GPS Coordinates</div>
+                            <div class="data-value coordinates" id="selectedStationCoordinates">--</div>
+                        </div>
+                        
+                        <div class="data-section">
+                            <div class="data-label">Device Status</div>
+                            <div class="data-value" id="selectedStationDeviceStatus">Checking database...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-  <main class="layout">
-    <!-- Left Panel (Map) -->
-    <section class="panel panel-map">
-      <div class="panel-header">
-        <h2>Flood Monitoring Map</h2>
-      </div>
-      <div class="panel-body">
-        <div class="search">
-          <form id="searchForm">
-            <input id="searchBox" type="text" placeholder="Search location...">
-            <button type="submit">🔍</button>
-          </form>
-          <div id="searchResults"></div>
+            <!-- Alerts Panel -->
+            <div class="dashboard-panel alerts-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-bell"></i>
+                        <span>System Status</span>
+                    </div>
+                    <button class="panel-toggle">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div class="alert-list" id="alertList">
+                        <div class="alert-item">
+                            <i class="fas fa-info-circle"></i>
+                            <span>System initialized. Checking database...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div id="map" class="map"></div>
-      </div>
-    </section>
-
-    <!-- Right Sidebar (Status, History, Info) -->
-    <aside class="panel sidebar">
-      <!-- Status Panel -->
-      <div class="panel-header">
-        <h2>Status</h2>
-      </div>
-      <div class="panel-body status-panel">
-        <div class="status-item">
-          <strong>Water Level:</strong> 
-          <span id="waterLevel">0</span> ft
+        
+        <!-- Mobile Bottom Navigation -->
+        <div class="mobile-bottom-nav mobile-only">
+            <button class="nav-btn" id="mobileFocusBtn">
+                <i class="fas fa-location-arrow"></i>
+                <span>My Location</span>
+            </button>
+            <button class="nav-btn" id="mobileRefreshBtn">
+                <i class="fas fa-sync"></i>
+                <span>Refresh</span>
+            </button>
+            <button class="nav-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+                <span>Dashboard</span>
+            </button>
         </div>
-        <div class="status-item">
-          <strong>Status:</strong> 
-          <span id="statusText" class="badge ok">SAFE</span>
+    </main>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay mobile-only">
+        <div class="overlay-header">
+            <h3>Dashboard</h3>
+            <button id="closeMenu" class="close-btn">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <div class="status-item">
-          <strong>Last Update:</strong> 
-          <span id="lastUpdate">--:--:--</span>
+        <div class="overlay-content">
+            <!-- Menu panels will be inserted here -->
         </div>
-      </div>
+    </div>
 
-      <!-- History Panel -->
-      <div class="panel-header">
-        <h2>History (Last 20)</h2>
-      </div>
-      <div class="panel-body history-panel">
-        <ul id="historyList"></ul>
-      </div>
+    <!-- Desktop Footer -->
+    <footer class="desktop-only">
+        <div class="footer-content">
+            <i class="fas fa-satellite-dish"></i>
+            <span>HydroPole - Real-time IoT Flood Monitoring | Checking database...</span>
+        </div>
+    </footer>
 
-      <!-- About Panel -->
-      <div class="panel-header">
-        <h2>About HydroPole</h2>
-      </div>
-      <div class="panel-body about-panel">
-        <p><b>Creators:</b> Dimaguuipo, Khristian Dayle R.<br>
-         Duhaylungsod, Kim Clint A. <br>
-         Navarro, Christian Joseph B.<br>
-         Ponciano, Adrianne C.<br>
-         Vardeleon, Fritz Ian F.</p>
-        <p><b>Purpose:</b> Flood monitoring and alert system.</p>
-        <p><b>Description:</b> HYDRO-POLE: High-Yield Depth Recognition and Observation Pole with LED Evaluation.</p>
-      </div>
-    </aside>
-  </main>
-
-  <footer>
-    <p>© 2025 HydroPole Project | Powered by Leaflet</p>
-  </footer>
-
-
-<script type="module" src="index.js"></script>
+    <script type="module" src="index.js"></script>
 </body>
 </html>
