@@ -1,33 +1,43 @@
 const supabaseUrl = 'https://qhulkelhbhllcwwandes.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWxrZWxoYmhsbGN3d2FuZGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTg2MjUsImV4cCI6MjA3NjI5NDYyNX0.42UGFleZGnrE0GCc3F8jU69ernTCRu6np-uqDD5G2Rk';
 
-// CORRECT VARIABLE NAME: Use 'supabase' not 'supabaseClient'
-const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+// Wait for Supabase to load
+let supabase;
 
-console.log('✅ Supabase configured with CDN');
+function initializeSupabase() {
+    try {
+        // Method that usually works with CDN
+        if (window.supabase && window.supabase.createClient) {
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            console.log('✅ Supabase initialized with window.supabase');
+        } else {
+            throw new Error('Supabase not found in window');
+        }
+    } catch (error) {
+        console.error('❌ Failed to initialize Supabase:', error);
+        // Retry after a short delay
+        setTimeout(initializeSupabase, 1000);
+    }
+}
 
-let map;
-let userLocationMarker = null;
-let userLocationCircle = null;
-let watchId = null;
-let isMobile = false;
-let currentUserLocation = null;
-
-// Station management
-let stations = [];
-let stationMarkers = [];
-let selectedStation = null;
-
-// Track previous water levels to detect changes
-let previousWaterLevels = new Map();
-
-// Debounce timer for loadStations to prevent excessive calls
-let loadStationsTimer = null;
-let isLoadingStations = false;
-
-// === Initialize everything when DOM is loaded ===
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded - initializing app with CDN Supabase');
+    console.log('DOM loaded - initializing Supabase');
+    initializeSupabase();
+    
+    // Wait for Supabase to be ready before doing anything else
+    const checkSupabase = setInterval(() => {
+        if (supabase) {
+            clearInterval(checkSupabase);
+            startApplication();
+        }
+    }, 100);
+});
+
+function startApplication() {
+    console.log('🚀 Starting Hydro-Pole application...');
+    
+    // NOW initialize the rest of your app
     checkMobileDevice();
     initMap();
     initEventListeners();
@@ -38,13 +48,12 @@ document.addEventListener('DOMContentLoaded', function() {
     initDashboard();
     loadInitialData();
     
-    // Set up auto-refresh
     setInterval(() => {
         loadStations();
     }, 30000);
     
-    console.log('HydroPole App initialized successfully with CDN!');
-});
+    console.log('✅ HydroPole App fully initialized!');
+}
 
 // === Check if device is mobile ===
 function checkMobileDevice() {
@@ -1918,5 +1927,6 @@ window.hideMobileMenu = hideMobileMenu;
 window.loadStations = loadStations;
 window.clearNotifications = clearNotifications;
 window.fetchStationData = fetchStationData;
+
 
 
