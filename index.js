@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     startRealTimeUpdates();
     requestUserLocation();
     initDashboard();
+     loadInitialData();
     
     console.log('HydroPole App initialized successfully!');
 });
@@ -1850,6 +1851,7 @@ function startRealTimeUpdates() {
     console.log('Setting up real-time database updates...');
     
     initRealTimeSubscriptions();
+    setupRealtimeUpdates(); // Add this line
     
     setInterval(() => {
         loadStations();
@@ -1862,6 +1864,78 @@ window.addEventListener('beforeunload', function() {
         navigator.geolocation.clearWatch(watchId);
     }
 });
+
+// === Setup Real-time Flood Updates ===
+function setupRealtimeUpdates() {
+  console.log('🔄 Setting up real-time flood data monitoring...');
+  
+  const subscription = supabase
+    .channel('flood-updates')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'flood_data',
+      },
+      (payload) => {
+        console.log('🆕 New flood data received!', payload.new);
+        updateDisplay(payload.new);
+      }
+    )
+    .subscribe();
+
+  return subscription;
+}
+
+// === Update Display with New Data ===
+function updateDisplay(newData) {
+    console.log('📊 Updating display with new data:', newData);
+    
+    // Show immediate notification
+    if (newData.device_id && newData.water_level !== undefined) {
+        const status = getWaterLevelStatus(newData.water_level);
+        let alertMessage = `New data from ${newData.device_id}: ${newData.water_level} ft`;
+        let alertType = 'info';
+        
+        if (status === 'danger') {
+            alertMessage = `🚨 NEW DANGER: ${newData.device_id} water level ${newData.water_level} ft`;
+            alertType = 'danger';
+        } else if (status === 'warning') {
+            alertMessage = `⚠️ NEW ALERT: ${newData.device_id} water level ${newData.water_level} ft`;
+            alertType = 'warning';
+        }
+        
+        showWaterLevelAlert(alertMessage, alertType);
+    }
+    
+    // Trigger stations reload to update everything
+    if (loadStationsTimer) clearTimeout(loadStationsTimer);
+    loadStationsTimer = setTimeout(() => loadStations(), 1000);
+}
+
+// === Load Initial Data ===
+async function loadInitialData() {
+    console.log('📥 Loading initial flood data...');
+    
+    const { data, error } = await supabase
+        .from('flood_data')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+    
+    if (error) {
+        console.error('Error loading initial data:', error);
+        return;
+    }
+    
+    if (data && data.length > 0) {
+        console.log('✅ Initial data loaded:', data[0]);
+        updateDisplay(data[0]);
+    } else {
+        console.log('ℹ️ No initial data found');
+    }
+}
 
 // === Make functions globally available ===
 window.selectStationFromPopup = function(stationId) {
