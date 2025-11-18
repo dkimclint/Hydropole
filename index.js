@@ -1,11 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+// ================================================================
+// HYDRO-POLE MONITOR - FIXED FOR CDN
+// ================================================================
 
+// Supabase configuration - USING CDN GLOBAL VARIABLE
 const supabaseUrl = 'https://qhulkelhbhllcwwandes.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWxrZWxoYmhsbGN3d2FuZGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTg2MjUsImV4cCI6MjA3NjI5NDYyNX0.42UGFleZGnrE0GCc3F8jU69ernTCRu6np-uqDD5G2Rk';
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Create Supabase client using CDN global variable
+const supabase = supabaseClient.createClient(supabaseUrl, supabaseKey);
 
-console.log('✅ Supabase configured with:', supabaseUrl);
+console.log('✅ Supabase configured with CDN');
 
 let map;
 let userLocationMarker = null;
@@ -28,7 +32,7 @@ let isLoadingStations = false;
 
 // === Initialize everything when DOM is loaded ===
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded - initializing app');
+    console.log('DOM loaded - initializing app with CDN Supabase');
     checkMobileDevice();
     initMap();
     initEventListeners();
@@ -39,12 +43,12 @@ document.addEventListener('DOMContentLoaded', function() {
     initDashboard();
     loadInitialData();
     
-    // Set up hydropole device auto-refresh
+    // Set up auto-refresh
     setInterval(() => {
         loadStations();
     }, 30000);
     
-    console.log('HydroPole App initialized successfully!');
+    console.log('HydroPole App initialized successfully with CDN!');
 });
 
 // === Check if device is mobile ===
@@ -1919,3 +1923,4 @@ window.hideMobileMenu = hideMobileMenu;
 window.loadStations = loadStations;
 window.clearNotifications = clearNotifications;
 window.fetchStationData = fetchStationData;
+
