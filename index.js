@@ -515,8 +515,8 @@ async function loadStations() {
                     
                     // Only add if not already added (this gives us the latest record for each device)
                     if (!stationMap.has(deviceId)) {
-                        const waterLevel = parseFloat(record.water_level);
-                        const waterLevelFeet = metersToFeet(waterLevel);
+                    const waterLevel = parseFloat(record.water_level);
+                    const waterLevelFeet = waterLevel;
                         
                         // USE REAL GPS COORDINATES FROM DATABASE - NO FALLBACK
                         const lat = parseFloat(record.gps_lat);
