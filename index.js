@@ -16,6 +16,11 @@ let stations = [];
 let stationMarkers = [];
 let selectedStation = null;
 
+// Performance optimization
+let refreshTimeout;
+let lastRefreshTime = 0;
+const REFRESH_COOLDOWN = 30000; // 30 seconds minimum between refreshes
+
 // === Water Level Color Functions ===
 function getWaterLevelColor(waterLevelFeet) {
     if (waterLevelFeet >= 0 && waterLevelFeet <= 1.0) {
@@ -203,10 +208,18 @@ function initEventListeners() {
         });
     }
     
-    // Refresh stations button
+    // Refresh stations button with cooldown
     const refreshStations = document.getElementById('refreshStations');
     if (refreshStations) {
-        refreshStations.addEventListener('click', loadStations);
+        refreshStations.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - lastRefreshTime > REFRESH_COOLDOWN) {
+                loadStations();
+                lastRefreshTime = now;
+            } else {
+                showWaterLevelAlert('Please wait before refreshing again', 'warning');
+            }
+        });
     }
     
     // Close station panel
@@ -264,7 +277,15 @@ function initMobileEventListeners() {
     
     const mobileRefreshBtn = document.getElementById('mobileRefreshBtn');
     if (mobileRefreshBtn) {
-        mobileRefreshBtn.addEventListener('click', loadStations);
+        mobileRefreshBtn.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - lastRefreshTime > REFRESH_COOLDOWN) {
+                loadStations();
+                lastRefreshTime = now;
+            } else {
+                showWaterLevelAlert('Please wait before refreshing again', 'warning');
+            }
+        });
     }
     
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -343,8 +364,14 @@ function showMobileMenu() {
         const refreshBtn = overlayContent.querySelector('#refreshStations');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', function() {
-                loadStations();
-                hideMobileMenu();
+                const now = Date.now();
+                if (now - lastRefreshTime > REFRESH_COOLDOWN) {
+                    loadStations();
+                    lastRefreshTime = now;
+                    hideMobileMenu();
+                } else {
+                    showWaterLevelAlert('Please wait before refreshing again', 'warning');
+                }
             });
         }
         
@@ -402,7 +429,19 @@ function hideMobileMenu() {
     console.log('Mobile menu closed');
 }
 
-// === Load Stations - ONLY REAL DATA FROM DATABASE ===
+// === Debounced Load Stations for Performance ===
+function debouncedLoadStations() {
+    clearTimeout(refreshTimeout);
+    refreshTimeout = setTimeout(() => {
+        const now = Date.now();
+        if (now - lastRefreshTime > REFRESH_COOLDOWN) {
+            loadStations();
+            lastRefreshTime = now;
+        }
+    }, 1000);
+}
+
+// === Load Stations - OPTIMIZED VERSION ===
 async function loadStations() {
     console.log('Loading stations from database...');
     
@@ -410,17 +449,22 @@ async function loadStations() {
         const stationsList = document.getElementById('stationsList');
         const refreshBtn = document.getElementById('refreshStations');
         
-        if (stationsList) {
+        if (stationsList && stations.length === 0) {
             stationsList.innerHTML = '<div class="loading-stations">Checking database...</div>';
         }
-        if (refreshBtn) {
+        
+        if (refreshBtn && !refreshBtn.classList.contains('loading')) {
             refreshBtn.classList.add('loading');
         }
         
-        // Fetch data from flood_data table
+        // Fetch only recent data (last 24 hours) to reduce payload
+        const twentyFourHoursAgo = new Date();
+        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+        
         const { data: floodData, error } = await supabase
             .from('flood_data')
             .select('*')
+            .gte('timestamp', twentyFourHoursAgo.toISOString())
             .order('timestamp', { ascending: false });
 
         if (error) {
@@ -471,7 +515,7 @@ async function loadStations() {
                 
                 const hasDeviceId = record.device_id && record.device_id.trim() !== '';
                 
-                // Check for valid GPS coordinates - THIS IS THE KEY FIX
+                // Check for valid GPS coordinates
                 const hasValidGPS = record.gps_lat !== null && 
                                   record.gps_lng !== null &&
                                   !isNaN(parseFloat(record.gps_lat)) && 
@@ -515,28 +559,30 @@ async function loadStations() {
                     
                     // Only add if not already added (this gives us the latest record for each device)
                     if (!stationMap.has(deviceId)) {
-                    const waterLevel = parseFloat(record.water_level);
-                    const waterLevelFeet = waterLevel;
+                        // FIXED: Remove incorrect unit conversion - data is already in feet
+                        const waterLevel = parseFloat(record.water_level);
+                        const waterLevelFeet = waterLevel; // Data is already in feet, no conversion needed
                         
                         // USE REAL GPS COORDINATES FROM DATABASE - NO FALLBACK
                         const lat = parseFloat(record.gps_lat);
                         const lng = parseFloat(record.gps_lng);
                         
                         console.log(`📡 Setting coordinates for ${deviceId}: ${lat}, ${lng}`);
+                        console.log(`📊 Water level for ${deviceId}: ${waterLevelFeet} ft (raw: ${waterLevel})`);
                         
                         // Determine status based on water level
-                        const waterLevelStatus = getWaterLevelColor(waterLevelFeet);
+                        const waterLevelColor = getWaterLevelColor(waterLevelFeet);
                         
                         stationMap.set(deviceId, {
                             id: record.id,
                             device_id: deviceId,
                             name: `Station ${deviceId}`,
-                            location: getLocationFromStatus(waterLevelStatus),
+                            location: getLocationFromStatus(waterLevelColor),
                             latitude: lat,
                             longitude: lng,
                             water_level: waterLevel,
                             water_level_feet: waterLevelFeet,
-                            status: waterLevelStatus,
+                            status: waterLevelColor,
                             message: record.message || 'Normal operation',
                             last_communication: record.timestamp,
                             // Add raw GPS data for debugging
@@ -556,6 +602,7 @@ async function loadStations() {
                 if (hydropole001) {
                     console.log(`🎯 HYDROPOLE_001 Real Coordinates: ${hydropole001.latitude}, ${hydropole001.longitude}`);
                     console.log(`🎯 HYDROPOLE_001 Raw GPS: ${hydropole001.raw_gps_lat}, ${hydropole001.raw_gps_lng}`);
+                    console.log(`🎯 HYDROPOLE_001 Water Level: ${hydropole001.water_level_feet} ft`);
                 }
                 
                 if (stations.length === 0) {
@@ -569,12 +616,12 @@ async function loadStations() {
                         `;
                     }
                 } else {
-                    showWaterLevelAlert(`Loaded ${stations.length} station(s) from database with real GPS coordinates`, 'success');
+                    showWaterLevelAlert(`Loaded ${stations.length} station(s) from database`, 'success');
                     
                     // Update footer
                     const footer = document.querySelector('footer .footer-content');
                     if (footer) {
-                        footer.innerHTML = `<i class="fas fa-satellite-dish"></i><span>HydroPole - ${stations.length} station(s) with live GPS</span>`;
+                        footer.innerHTML = `<i class="fas fa-satellite-dish"></i><span>HydroPole - ${stations.length} station(s) active</span>`;
                     }
                 }
             }
@@ -673,7 +720,8 @@ function renderStationsList() {
     
     // We have stations with real data
     stationsList.innerHTML = stations.map(station => {
-        const waterLevelFeet = station.water_level_feet || metersToFeet(station.water_level);
+        // FIXED: Use water_level_feet directly (no conversion)
+        const waterLevelFeet = station.water_level_feet;
         const waterLevelColor = getWaterLevelColor(waterLevelFeet);
         
         return `
@@ -769,7 +817,8 @@ function highlightStationMarker(station) {
 // === Create Station Marker Icon (with highlight option) ===
 function createStationMarkerIcon(station, status, isHighlighted = false) {
     const highlightClass = isHighlighted ? 'highlighted' : '';
-    const waterLevelFeet = station.water_level_feet || metersToFeet(station.water_level);
+    // FIXED: Use water_level_feet directly (no conversion)
+    const waterLevelFeet = station.water_level_feet;
     const waterLevelColor = getWaterLevelColor(waterLevelFeet);
     
     return L.divIcon({
@@ -836,7 +885,8 @@ function createStationMarker(station) {
 // === Create Enhanced Station Popup Content ===
 function createEnhancedStationPopupContent(station) {
     const status = getStationStatus(station);
-    const waterLevelFeet = station.water_level_feet || metersToFeet(station.water_level);
+    // FIXED: Use water_level_feet directly (no conversion)
+    const waterLevelFeet = station.water_level_feet;
     const waterLevelColor = getWaterLevelColor(waterLevelFeet);
     const waterLevelStatus = getWaterLevelStatus(waterLevelFeet);
     const lastUpdate = station.last_communication ? new Date(station.last_communication) : null;
@@ -970,28 +1020,25 @@ function updateSelectedStationPanel() {
     
     // Update water level data - ONLY show if we have real data
     if (selectedStation.water_level !== null && selectedStation.water_level !== undefined) {
-        const waterLevel = parseFloat(selectedStation.water_level);
-        if (!isNaN(waterLevel)) {
-            // REAL DATA FROM DATABASE - Convert to feet
-            const waterLevelFeet = selectedStation.water_level_feet || metersToFeet(waterLevel);
-            const waterLevelColor = getWaterLevelColor(waterLevelFeet);
-            const waterLevelStatus = getWaterLevelStatus(waterLevelFeet);
-            
-            if (waterLevelEl) {
-                waterLevelEl.textContent = `${waterLevelFeet.toFixed(2)} ft`;
-                waterLevelEl.className = `data-value water-level-${waterLevelColor}`;
-                waterLevelEl.style.fontWeight = 'bold';
-            }
-            
-            if (statusEl) {
-                statusEl.textContent = waterLevelStatus;
-                statusEl.className = `badge ${waterLevelColor}`;
-            }
-            
-            if (deviceStatusEl) {
-                deviceStatusEl.textContent = 'Connected - Live Data';
-                deviceStatusEl.style.color = 'var(--safe-green)';
-            }
+        // FIXED: Use water_level_feet directly (no conversion)
+        const waterLevelFeet = selectedStation.water_level_feet;
+        const waterLevelColor = getWaterLevelColor(waterLevelFeet);
+        const waterLevelStatus = getWaterLevelStatus(waterLevelFeet);
+        
+        if (waterLevelEl) {
+            waterLevelEl.textContent = `${waterLevelFeet.toFixed(2)} ft`;
+            waterLevelEl.className = `data-value water-level-${waterLevelColor}`;
+            waterLevelEl.style.fontWeight = 'bold';
+        }
+        
+        if (statusEl) {
+            statusEl.textContent = waterLevelStatus;
+            statusEl.className = `badge ${waterLevelColor}`;
+        }
+        
+        if (deviceStatusEl) {
+            deviceStatusEl.textContent = 'Connected - Live Data';
+            deviceStatusEl.style.color = 'var(--safe-green)';
         }
     } else {
         // No real data
@@ -1126,9 +1173,11 @@ function handleFloodDataUpdate(payload) {
                 // This is REAL data from database with GPS
                 console.log(`📍 New GPS coordinates for ${newRecord.device_id}: ${newRecord.gps_lat}, ${newRecord.gps_lng}`);
                 
-                loadStations(); // Reload to get latest data with new GPS
+                // Use debounced load for better performance
+                debouncedLoadStations();
                 
-                const waterLevelFeet = metersToFeet(parseFloat(newRecord.water_level));
+                // FIXED: Use water level directly (no conversion)
+                const waterLevelFeet = parseFloat(newRecord.water_level);
                 const waterLevelColor = getWaterLevelColor(waterLevelFeet);
                 
                 // Show alert for important status changes
@@ -1145,7 +1194,7 @@ function handleFloodDataUpdate(payload) {
             break;
             
         default:
-            loadStations(); // Reload for any other event type
+            debouncedLoadStations(); // Use debounced reload for any other event type
             break;
     }
 }
@@ -1691,15 +1740,15 @@ function loadDarkModePreference() {
     }
 }
 
-// === Start Real-time Updates ===
+// === Start Real-time Updates - OPTIMIZED ===
 function startRealTimeUpdates() {
     console.log('Setting up real-time database updates...');
     initRealTimeSubscriptions();
     
-    // Refresh stations every 30 seconds to check for new data
+    // Increase refresh interval from 30s to 60s to reduce load
     setInterval(() => {
-        loadStations();
-    }, 30000);
+        debouncedLoadStations();
+    }, 60000); // 60 seconds instead of 30
 }
 
 // === Clean up when page unloads ===
@@ -1728,3 +1777,4 @@ window.showWaterLevelAlert = showWaterLevelAlert;
 window.hideMobileMenu = hideMobileMenu;
 window.loadStations = loadStations;
 window.moveToStationLocation = moveToStationLocation;
+window.debouncedLoadStations = debouncedLoadStations;
