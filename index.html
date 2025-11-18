@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="HydroPole - Real-time flood monitoring system">
     <title>HYDRO-POLE - Flood Monitoring System</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="images/logoHP.png">
+    <link rel="apple-touch-icon" href="images/logoHP.png">
+    
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Quicksand:wght@500&family=Poppins:wght@600&family=Exo+2:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,12 +19,12 @@
 <body>
     <header class="site-header">
         <div class="header-inner">
-            <div class="brand">
-                <div class="logo-icon">
-                    <i class="fas fa-water"></i>
+            <a href="#" class="brand">
+                <div class="logo-container">
+                    <img src="images/logoHP.png" alt="Hydro-Pole Logo" class="logo-image">
+                    <div class="logo-text">HYDRO-POLE</div>
                 </div>
-                <div class="logo-text">HYDRO-POLE</div>
-            </div>
+            </a>
             <div class="header-controls">
                 <div class="search-toggle-container">
                     <button id="searchToggle" class="control-btn" title="Search Location">
@@ -28,9 +33,12 @@
                     <div class="search-container">
                         <form id="searchForm">
                             <div class="search-input-group">
-                                <input id="searchBox" type="text" placeholder="Search for locations...">
+                                <div class="search-input-wrapper">
+                                    <i class="fas fa-search search-icon"></i>
+                                    <input id="searchBox" type="text" placeholder="Search for locations...">
+                                </div>
                                 <button type="submit" class="search-submit">
-                                    <i class="fas fa-arrow-right"></i>
+                                    <i class="fas fa-search"></i>
                                 </button>
                             </div>
                         </form>
@@ -45,9 +53,12 @@
                     <div class="station-search-container">
                         <form id="stationSearchForm">
                             <div class="search-input-group">
-                                <input id="stationSearchBox" type="text" placeholder="Search stations (e.g., HYDROPOLE_001)...">
+                                <div class="search-input-wrapper">
+                                    <i class="fas fa-satellite search-icon"></i>
+                                    <input id="stationSearchBox" type="text" placeholder="Search stations...">
+                                </div>
                                 <button type="submit" class="search-submit">
-                                    <i class="fas fa-arrow-right"></i>
+                                    <i class="fas fa-search"></i>
                                 </button>
                             </div>
                         </form>
@@ -61,7 +72,7 @@
             </div>
         </div>
     </header>
-
+    
     <!-- Desktop Map Controls -->
     <div class="map-controls desktop-only">
         <button id="zoomInBtn" class="map-control-btn" title="Zoom In">
@@ -70,11 +81,11 @@
         <button id="zoomOutBtn" class="map-control-btn" title="Zoom Out">
             <i class="fas fa-minus"></i>
         </button>
-        <button id="desktopMapLocationBtn" class="map-control-btn" title="My Location">
+        <button id="desktopMyLocationBtn" class="map-control-btn" title="My Location">
             <i class="fas fa-location-arrow"></i>
         </button>
     </div>
-
+    
     <main class="layout">
         <div id="map" class="map-background"></div>
         
@@ -103,58 +114,13 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Selected Station Panel -->
-            <div class="dashboard-panel selected-station-panel" id="selectedStationPanel" style="display: none;">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <i class="fas fa-tint"></i>
-                        <span id="selectedStationTitle">Station Data</span>
-                    </div>
-                    <button class="panel-close" id="closeStationPanel">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="panel-body">
-                    <div class="station-header">
-                        <div class="station-name-large" id="selectedStationName">--</div>
-                        <div class="station-location" id="selectedStationLocation">--</div>
-                        <div class="station-id" id="selectedStationId">ID: --</div>
-                    </div>
-                    
-                    <div class="water-level-display">
-                        <div class="data-section">
-                            <div class="data-label">Current Water Level</div>
-                            <div class="data-value" id="selectedStationWaterLevel">--</div>
-                            <div class="data-badge">
-                                <span class="badge" id="selectedStationStatus">--</span>
-                            </div>
-                        </div>
-                        
-                        <div class="data-section">
-                            <div class="data-label">Last Update</div>
-                            <div class="data-value" id="selectedStationLastUpdate">--</div>
-                        </div>
-                        
-                        <div class="data-section">
-                            <div class="data-label">GPS Coordinates</div>
-                            <div class="data-value coordinates" id="selectedStationCoordinates">--</div>
-                        </div>
-                        
-                        <div class="data-section">
-                            <div class="data-label">Device Status</div>
-                            <div class="data-value" id="selectedStationDeviceStatus">Checking database...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+            
             <!-- Alerts Panel -->
             <div class="dashboard-panel alerts-panel">
                 <div class="panel-header">
                     <div class="panel-title">
                         <i class="fas fa-bell"></i>
-                        <span>System Status</span>
+                        <span>Recent Alerts</span>
                     </div>
                     <button class="panel-toggle">
                         <i class="fas fa-chevron-down"></i>
@@ -164,51 +130,45 @@
                     <div class="alert-list" id="alertList">
                         <div class="alert-item">
                             <i class="fas fa-info-circle"></i>
-                            <span>System initialized. Checking database...</span>
+                            <span>System initialized. Monitoring water levels...</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Mobile Bottom Navigation -->
-        <div class="mobile-bottom-nav mobile-only">
-            <button class="nav-btn" id="mobileFocusBtn">
+        <!-- FIXED: Mobile Map Controls with better spacing and notification button -->
+        <div class="mobile-map-controls mobile-only">
+            <button id="mobileMyLocationBtn" class="mobile-control-btn" title="My Location">
                 <i class="fas fa-location-arrow"></i>
-                <span>My Location</span>
             </button>
-            <button class="nav-btn" id="mobileRefreshBtn">
-                <i class="fas fa-sync"></i>
-                <span>Refresh</span>
-            </button>
-            <button class="nav-btn" id="mobileMenuBtn">
-                <i class="fas fa-bars"></i>
-                <span>Dashboard</span>
+            <button id="mobileNotificationsBtn" class="mobile-control-btn" title="Notifications">
+                <i class="fas fa-bell"></i>
             </button>
         </div>
     </main>
-
+    
     <!-- Mobile Menu Overlay -->
     <div class="mobile-menu-overlay mobile-only">
         <div class="overlay-header">
-            <h3>Dashboard</h3>
+            <h3>Notifications</h3>
             <button id="closeMenu" class="close-btn">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="overlay-content">
-            <!-- Menu panels will be inserted here -->
+            <!-- Notifications content will be inserted here -->
         </div>
     </div>
-
-    <!-- Desktop Footer -->
-    <footer class="desktop-only">
+    
+    <!-- Footer for both desktop and mobile - FIXED VISIBILITY -->
+    <footer class="site-footer">
         <div class="footer-content">
             <i class="fas fa-satellite-dish"></i>
-            <span>HydroPole - Real-time IoT Flood Monitoring | Checking database...</span>
+            <span>HydroPole - Real-time IoT Flood Monitoring</span>
         </div>
     </footer>
-
+    
     <script type="module" src="index.js"></script>
 </body>
 </html>
