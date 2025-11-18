@@ -1,9 +1,11 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://qhulkelhbhllcwwandes.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWxrZWxoYmhsbGN3d2FuZGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTg2MjUsImV4cCI6MjA3NjI5NDYyNX0.42UGFleZGnrE0GCc3F8jU69ernTCRu6np-uqDD5G2Rk';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+console.log('✅ Supabase configured with:', supabaseUrl);
 
 let map;
 let userLocationMarker = null;
@@ -37,10 +39,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initDashboard();
     loadInitialData();
     
-    // NEW: Set up hydropole device auto-refresh
+    // Set up hydropole device auto-refresh
     setInterval(() => {
-        loadStations(); // This will refresh all data including hydropole_device
-    }, 30000); // Refresh every 30 seconds
+        loadStations();
+    }, 30000);
     
     console.log('HydroPole App initialized successfully!');
 });
@@ -52,7 +54,6 @@ function checkMobileDevice() {
     
     if (isMobile) {
         document.body.classList.add('mobile-device');
-        // Force show mobile elements
         document.querySelectorAll('.mobile-only').forEach(el => {
             el.style.display = 'block';
         });
@@ -86,12 +87,9 @@ function initMap() {
         minZoom: 3
     }).addTo(map);
     
-    // Ensure map container is fully interactive
     const mapContainer = map.getContainer();
     mapContainer.style.pointerEvents = 'auto';
     mapContainer.style.touchAction = 'pan-x pan-y pinch-zoom';
-    
-    // Set cursor style for better UX
     mapContainer.style.cursor = 'grab';
     
     map.on('mousedown', function() {
@@ -102,7 +100,6 @@ function initMap() {
         mapContainer.style.cursor = 'grab';
     });
     
-    // Ensure map is responsive
     setTimeout(() => {
         map.invalidateSize();
     }, 100);
@@ -112,7 +109,6 @@ function initMap() {
 
 // === Initialize Dashboard ===
 function initDashboard() {
-    // Initialize panel toggles for desktop
     const panelToggles = document.querySelectorAll('.panel-toggle');
     panelToggles.forEach(toggle => {
         toggle.addEventListener('click', function(e) {
@@ -120,7 +116,6 @@ function initDashboard() {
             const panel = this.closest('.dashboard-panel');
             panel.classList.toggle('collapsed');
             
-            // Rotate icon
             const icon = this.querySelector('i');
             if (panel.classList.contains('collapsed')) {
                 icon.style.transform = 'rotate(-90deg)';
@@ -130,7 +125,6 @@ function initDashboard() {
         });
     });
     
-    // Keep panels expanded by default on desktop, collapsed on mobile
     const panels = document.querySelectorAll('.dashboard-panel');
     panels.forEach(panel => {
         if (isMobile) {
@@ -196,7 +190,6 @@ function initEventListeners() {
         mobileMyLocationBtn.addEventListener('click', function() {
             console.log('Mobile My Location button clicked');
             focusOnUser();
-            // Add visual feedback
             this.style.transform = 'scale(0.9)';
             setTimeout(() => {
                 this.style.transform = '';
@@ -204,13 +197,12 @@ function initEventListeners() {
         });
     }
     
-    // FIXED: Mobile map controls - Changed from Monitoring to Notifications
+    // Mobile Notifications button
     const mobileNotificationsBtn = document.getElementById('mobileNotificationsBtn');
     if (mobileNotificationsBtn) {
         mobileNotificationsBtn.addEventListener('click', function() {
             console.log('Mobile Notifications button clicked');
             showNotificationsPanel();
-            // Add visual feedback
             this.style.transform = 'scale(0.9)';
             setTimeout(() => {
                 this.style.transform = '';
@@ -263,7 +255,7 @@ function initEventListeners() {
         closeMenu.addEventListener('click', hideMobileMenu);
     }
     
-    // Close search when clicking outside - MOBILE COMPATIBLE
+    // Close search when clicking outside
     document.addEventListener('click', function(e) {
         const searchContainer = document.querySelector('.search-container');
         const searchToggle = document.getElementById('searchToggle');
@@ -282,7 +274,6 @@ function initEventListeners() {
             stationSearchContainer.classList.remove('active');
         }
         
-        // Close mobile menu when clicking outside content
         const overlay = document.querySelector('.mobile-menu-overlay');
         if (overlay && overlay.classList.contains('active') && 
             !overlay.querySelector('.overlay-content').contains(e.target) &&
@@ -312,7 +303,7 @@ function handleResize() {
     }
 }
 
-// === FIXED: Show Notifications Panel (Replaces old Monitoring Panel) ===
+// === Show Notifications Panel ===
 function showNotificationsPanel() {
     console.log('Opening notifications panel...');
     const overlay = document.querySelector('.mobile-menu-overlay');
@@ -320,7 +311,6 @@ function showNotificationsPanel() {
     
     if (!overlay || !overlayContent) return;
     
-    // Create notifications-specific content
     overlayContent.innerHTML = `
         <div class="notifications-header">
             <h4><i class="fas fa-bell"></i> Recent Alerts & Updates</h4>
@@ -345,10 +335,8 @@ function showNotificationsPanel() {
         </div>
     `;
     
-    // Load actual notifications
     loadMobileNotifications();
     
-    // Add event listener for clear button
     const clearBtn = overlayContent.querySelector('.clear-notifications-btn');
     if (clearBtn) {
         clearBtn.addEventListener('click', clearNotifications);
@@ -365,11 +353,9 @@ function loadMobileNotifications() {
     const notificationsList = document.getElementById('mobileNotificationsList');
     if (!notificationsList) return;
     
-    // Get recent alerts from the alert list
     const alertItems = document.querySelectorAll('#alertList .alert-item');
     const notifications = [];
     
-    // Add system status notification
     notifications.push({
         type: 'info',
         title: 'System Status',
@@ -378,9 +364,8 @@ function loadMobileNotifications() {
         icon: 'fa-info-circle'
     });
     
-    // Convert alerts to notifications
     alertItems.forEach((alert, index) => {
-        if (index < 8) { // Limit to 8 most recent
+        if (index < 8) {
             const icon = alert.querySelector('i').className;
             const message = alert.querySelector('span').textContent;
             const type = alert.classList.contains('warning') ? 'warning' : 
@@ -401,7 +386,6 @@ function loadMobileNotifications() {
         }
     });
     
-    // If no alerts, add a placeholder
     if (notifications.length <= 1) {
         notifications.push({
             type: 'info',
@@ -412,7 +396,6 @@ function loadMobileNotifications() {
         });
     }
     
-    // Render notifications
     notificationsList.innerHTML = notifications.map(notification => `
         <div class="notification-item ${notification.type}">
             <div class="notification-icon">
@@ -434,7 +417,6 @@ function clearNotifications() {
         alertList.innerHTML = '<div class="alert-item"><i class="fas fa-info-circle"></i><span>No recent alerts</span></div>';
     }
     
-    // Refresh the notifications panel
     loadMobileNotifications();
     
     showWaterLevelAlert('Notifications cleared', 'success');
@@ -452,7 +434,7 @@ function hideMobileMenu() {
     console.log('Mobile menu closed');
 }
 
-// === Load Stations from flood_data, hydropole_devices, hydropole_device and monitoring_stations tables ===
+// === FIXED: Load Stations - CORRECT TABLE NAMES ===
 async function loadStations() {
     if (isLoadingStations) {
         console.log('loadStations already in progress, skipping...');
@@ -477,36 +459,31 @@ async function loadStations() {
             refreshBtn.classList.add('loading');
         }
         
-        // Fetch data from all FOUR tables in parallel
-        const [floodDataResult, devicesResult, stationsResult, hydropoleDeviceResult] = await Promise.all([
+        // FIXED: Use CORRECT table names - removed hydropole_devices (plural)
+        const [floodDataResult, stationsResult, hydropoleDeviceResult] = await Promise.all([
             supabase.from('flood_data').select('*').order('timestamp', { ascending: false }).limit(100),
-            supabase.from('hydropole_devices').select('*'),
             supabase.from('monitoring_stations').select('*'),
-            supabase.from('hydropole_device').select('*').order('created_at', { ascending: false }).limit(50) // NEW
+            supabase.from('hydropole_device').select('*').order('created_at', { ascending: false }).limit(50)
         ]);
 
         // Check for errors
         if (floodDataResult.error) {
             console.error('Error loading flood_data:', floodDataResult.error);
         }
-        if (devicesResult.error) {
-            console.error('Error loading hydropole_devices:', devicesResult.error);
-        }
         if (stationsResult.error) {
             console.error('Error loading monitoring_stations:', stationsResult.error);
         }
-        if (hydropoleDeviceResult.error) { // NEW
+        if (hydropoleDeviceResult.error) {
             console.error('Error loading hydropole_device:', hydropoleDeviceResult.error);
         }
 
         const floodData = floodDataResult.data || [];
-        const devices = devicesResult.data || [];
         const stationInfo = stationsResult.data || [];
-        const hydropoleDeviceData = hydropoleDeviceResult.data || []; // NEW
+        const hydropoleDeviceData = hydropoleDeviceResult.data || [];
 
-        console.log(`Loaded: ${floodData.length} flood records, ${devices.length} devices, ${stationInfo.length} station records, ${hydropoleDeviceData.length} hydropole device records`);
+        console.log(`Loaded: ${floodData.length} flood records, ${stationInfo.length} station records, ${hydropoleDeviceData.length} hydropole device records`);
 
-        if (floodData.length === 0 && devices.length === 0 && hydropoleDeviceData.length === 0) {
+        if (floodData.length === 0 && hydropoleDeviceData.length === 0) {
             if (stationsList) {
                 stationsList.innerHTML = `
                     <div class="no-stations">
@@ -526,13 +503,6 @@ async function loadStations() {
         }
 
         // Create maps for quick lookup
-        const deviceMap = new Map();
-        devices.forEach(device => {
-            if (device.device_id) {
-                deviceMap.set(device.device_id, device);
-            }
-        });
-
         const stationInfoMap = new Map();
         stationInfo.forEach(station => {
             if (station.device_id) {
@@ -556,7 +526,7 @@ async function loadStations() {
             }
         });
 
-        // ADD THIS: Process hydropole_device data
+        // Process hydropole_device data
         const hydropoleDeviceMap = new Map();
         hydropoleDeviceData.forEach(record => {
             const deviceId = record.device_id;
@@ -576,20 +546,18 @@ async function loadStations() {
             }
         });
 
-        // Combine data from all four tables
+        // Combine data from all tables
         const newStations = [];
         
         // Process devices that have flood data OR hydropole_device data
         const allDeviceIds = new Set([
             ...Array.from(latestFloodDataMap.keys()),
-            ...Array.from(hydropoleDeviceMap.keys()),
-            ...Array.from(deviceMap.keys())
+            ...Array.from(hydropoleDeviceMap.keys())
         ]);
         
         allDeviceIds.forEach(deviceId => {
             const floodRecord = latestFloodDataMap.get(deviceId);
-            const hydropoleRecord = hydropoleDeviceMap.get(deviceId); // NEW
-            const device = deviceMap.get(deviceId);
+            const hydropoleRecord = hydropoleDeviceMap.get(deviceId);
             const station = stationInfoMap.get(deviceId);
             
             // Prefer hydropole_device data if available
@@ -608,7 +576,7 @@ async function loadStations() {
                 waterLevel = null;
             }
             
-            // Get coordinates - prioritize in this order: station info, device info, flood data
+            // Get coordinates - prioritize in this order: station info, flood data
             let lat = null;
             let lng = null;
             
@@ -617,33 +585,28 @@ async function loadStations() {
                 lng = parseFloat(station.lng || station.longitude || station.long || station.longitude);
             }
             
-            if ((!lat || isNaN(lat)) && device) {
-                lat = parseFloat(device.current_lat || device.latitude);
-                lng = parseFloat(device.current_lng || device.current_long || device.longitude || device.lng);
-            }
-            
             if ((!lat || isNaN(lat)) && floodRecord) {
                 lat = parseFloat(floodRecord.gps_lat || floodRecord.latitude);
                 lng = parseFloat(floodRecord.gps_lng || floodRecord.gps_long || floodRecord.longitude);
             }
             
-            // Special handling for HYDROPOLE_001 - ensure it gets proper coordinates
-            if (deviceId === 'HYDROPOLE_001') {
+            // Special handling for HYDROPOLE_TEST_001 - ensure it gets proper coordinates
+            if (deviceId === 'HYDROPOLE_TEST_001') {
                 if (!lat || isNaN(lat)) {
-                    console.log('Setting default coordinates for HYDROPOLE_001');
-                    lat = 14.847090;
-                    lng = 120.813300;
+                    console.log('Setting default coordinates for HYDROPOLE_TEST_001');
+                    lat = 14.5995;
+                    lng = 120.9842;
                 }
             } else if ((!lat || isNaN(lat)) && deviceId) {
                 console.warn(`Device ${deviceId} missing valid coordinates, using default location`);
-                lat = 14.847090;
+                lat = 14.5995;
             }
             
             if ((!lng || isNaN(lng)) && deviceId) {
-                lng = 120.813300;
+                lng = 120.9842;
             }
             
-            const deviceName = station?.name || device?.device_name || `Station ${deviceId}`;
+            const deviceName = station?.name || `Station ${deviceId}`;
             const location = station?.location || getLocationFromStatus(sourceRecord?.status);
             
             // Determine status based on available data
@@ -671,11 +634,8 @@ async function loadStations() {
                 water_level: waterLevel,
                 status: status,
                 message: sourceRecord?.message || null,
-                battery_level: sourceRecord?.battery_level !== null && sourceRecord?.battery_level !== undefined ? parseFloat(sourceRecord.battery_level) : null,
-                signal_strength: sourceRecord?.signal_strength !== null && sourceRecord?.signal_strength !== undefined ? parseFloat(sourceRecord.signal_strength) : null,
                 last_communication: lastCommunication,
-                sim_number: device?.sim_number || null,
-                data_source: hydropoleRecord ? 'hydropole_device' : (floodRecord ? 'flood_data' : 'device_only') // Track data source
+                data_source: hydropoleRecord ? 'hydropole_device' : (floodRecord ? 'flood_data' : 'device_only')
             });
         });
 
@@ -691,10 +651,10 @@ async function loadStations() {
         
         if (stations.length > 0) {
             console.log(`✅ Loaded ${stations.length} monitoring station(s) from database`);
-            // Log HYDROPOLE_001 details for debugging
-            const hydroPole001 = stations.find(s => s.device_id === 'HYDROPOLE_001');
+            // Log HYDROPOLE_TEST_001 details for debugging
+            const hydroPole001 = stations.find(s => s.device_id === 'HYDROPOLE_TEST_001');
             if (hydroPole001) {
-                console.log('HYDROPOLE_001 details:', {
+                console.log('HYDROPOLE_TEST_001 details:', {
                     device_id: hydroPole001.device_id,
                     water_level: hydroPole001.water_level,
                     latitude: hydroPole001.latitude,
@@ -911,14 +871,13 @@ function updateStationMarkers() {
 
 // === Create Enhanced Station Marker with Water Level Colors ===
 function createStationMarker(station) {
-    const status = getWaterLevelStatus(station.water_level); // Use water level status directly
+    const status = getWaterLevelStatus(station.water_level);
     const waterLevel = station.water_level !== null && !isNaN(parseFloat(station.water_level)) 
         ? parseFloat(station.water_level) 
         : null;
     
     const waterLevelDisplay = waterLevel !== null ? waterLevel.toFixed(1) + 'ft' : '--';
     
-    // Enhanced marker with water level color coding
     const stationIcon = L.divIcon({
         className: `station-marker enhanced ${status}`,
         html: `
@@ -939,10 +898,9 @@ function createStationMarker(station) {
     try {
         const marker = L.marker([parseFloat(station.latitude), parseFloat(station.longitude)], {
             icon: stationIcon,
-            zIndexOffset: station.device_id === 'HYDROPOLE_001' ? 2000 : 1000
+            zIndexOffset: station.device_id === 'HYDROPOLE_TEST_001' ? 2000 : 1000
         });
         
-        // Add popup with station info
         const popupContent = createStationPopupContent(station);
         marker.bindPopup(popupContent, {
             className: 'user-popup-enhanced',
@@ -950,7 +908,6 @@ function createStationMarker(station) {
             autoClose: true
         });
         
-        // Add click event to select station
         marker.on('click', function() {
             selectStation(station);
         });
@@ -971,10 +928,8 @@ function createStationPopupContent(station) {
         ? parseFloat(station.water_level) 
         : null;
     
-    // Get location name - handle gracefully if API fails
     const locationPromise = getLocationName(parseFloat(station.latitude), parseFloat(station.longitude));
     
-    // Use the promise to update the popup if it resolves
     locationPromise.then(locationName => {
         const marker = stationMarkers.find(m => {
             const markerLatLng = m.getLatLng();
@@ -999,7 +954,6 @@ function createEnhancedStationPopupContent(station, locationName, waterLevel, st
     const lastUpdate = station.last_communication ? new Date(station.last_communication) : null;
     const timeAgo = lastUpdate ? getTimeAgo(lastUpdate) : 'Never';
     
-    // Determine status description based on water level
     let statusDescription = 'No Data';
     if (waterLevel !== null) {
         if (status === 'danger') {
@@ -1011,7 +965,6 @@ function createEnhancedStationPopupContent(station, locationName, waterLevel, st
         }
     }
     
-    // Add data source info
     const dataSourceInfo = station.data_source ? ` • Data from ${station.data_source}` : '';
     
     return `
@@ -1022,7 +975,7 @@ function createEnhancedStationPopupContent(station, locationName, waterLevel, st
                 </div>
                 <div class="enhanced-popup-title-section">
                     <div class="enhanced-popup-title">${station.name || 'Monitoring Station'}</div>
-                    <div class="enhanced-popup-subtitle">${station.device_id === 'HYDROPOLE_001' ? 'Primary Monitoring Station' : 'Live Monitoring Station'}${dataSourceInfo}</div>
+                    <div class="enhanced-popup-subtitle">${station.device_id === 'HYDROPOLE_TEST_001' ? 'Primary Monitoring Station' : 'Live Monitoring Station'}${dataSourceInfo}</div>
                 </div>
             </div>
             
@@ -1116,7 +1069,7 @@ function createEnhancedStationPopupContent(station, locationName, waterLevel, st
             <div class="enhanced-popup-footer">
                 <div class="enhanced-accuracy-info">
                     <i class="fas fa-satellite"></i>
-                    ${station.device_id === 'HYDROPOLE_001' ? 'Primary Station • Real-time GPS' : 'Live Monitoring • Real-time GPS'}
+                    ${station.device_id === 'HYDROPOLE_TEST_001' ? 'Primary Station • Real-time GPS' : 'Live Monitoring • Real-time GPS'}
                 </div>
             </div>
         </div>
@@ -1129,18 +1082,15 @@ function selectStation(station) {
     
     selectedStation = station;
     
-    // Only move to station location, don't show panel
     if (station.latitude && station.longitude && map) {
         const stationLatLng = [parseFloat(station.latitude), parseFloat(station.longitude)];
         const zoomLevel = 16;
         
-        // Use flyTo for smooth animation to the station location
         map.flyTo(stationLatLng, zoomLevel, {
             duration: 1.5,
             easeLinearity: 0.25
         });
         
-        // Open station marker popup after animation
         setTimeout(() => {
             const stationMarker = stationMarkers.find(marker => {
                 const markerLatLng = marker.getLatLng();
@@ -1189,7 +1139,6 @@ function updateStationsCount() {
     
     countElement.textContent = `${onlineStations}/${totalStations} Stations Online`;
     
-    // Update badge color based on status
     if (onlineStations === totalStations) {
         countElement.style.color = 'var(--safe-green)';
     } else if (onlineStations === 0) {
@@ -1199,9 +1148,9 @@ function updateStationsCount() {
     }
 }
 
-// === Initialize Real-time Subscriptions ===
+// === FIXED: Initialize Real-time Subscriptions ===
 function initRealTimeSubscriptions() {
-    // Subscribe to changes in flood_data table for real-time updates
+    // Subscribe to changes in flood_data table
     const floodSubscription = supabase
         .channel('flood_data_changes')
         .on('postgres_changes', 
@@ -1213,22 +1162,6 @@ function initRealTimeSubscriptions() {
             (payload) => {
                 console.log('Real-time flood_data update:', payload);
                 handleFloodDataUpdate(payload);
-            }
-        )
-        .subscribe();
-    
-    // Subscribe to changes in hydropole_devices table
-    const devicesSubscription = supabase
-        .channel('devices_changes')
-        .on('postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'hydropole_devices'
-            },
-            (payload) => {
-                if (loadStationsTimer) clearTimeout(loadStationsTimer);
-                loadStationsTimer = setTimeout(() => loadStations(), 1000);
             }
         )
         .subscribe();
@@ -1249,7 +1182,7 @@ function initRealTimeSubscriptions() {
         )
         .subscribe();
     
-    // NEW: Subscribe to hydropole_device table
+    // Subscribe to hydropole_device table
     const hydropoleDeviceSubscription = supabase
         .channel('hydropole_device_changes')
         .on('postgres_changes',
@@ -1266,7 +1199,7 @@ function initRealTimeSubscriptions() {
         )
         .subscribe();
     
-    console.log('✅ Real-time subscriptions initialized for flood_data, hydropole_devices, monitoring_stations, and hydropole_device');
+    console.log('✅ Real-time subscriptions initialized for flood_data, monitoring_stations, and hydropole_device');
 }
 
 // === Handle Real-time Flood Data Updates ===
@@ -1283,7 +1216,6 @@ function handleFloodDataUpdate(payload) {
         case 'INSERT':
         case 'UPDATE':
             if (newRecord && newRecord.device_id) {
-                // Debounce the stations reload
                 if (loadStationsTimer) clearTimeout(loadStationsTimer);
                 loadStationsTimer = setTimeout(() => loadStations(), 500);
             }
@@ -1331,7 +1263,6 @@ function requestUserLocation() {
         }
     );
     
-    // Only start watching if not already watching
     if (!watchId) {
         watchId = navigator.geolocation.watchPosition(
             (position) => {
@@ -1404,14 +1335,12 @@ function createUserLocationMarker(lat, lng) {
 // === Focus on User Location ===
 function focusOnUser() {
     if (currentUserLocation) {
-        // User location is known, fly to it
         const zoomLevel = 16;
         map.flyTo([currentUserLocation.lat, currentUserLocation.lng], zoomLevel, {
             duration: 1.5,
             easeLinearity: 0.25
         });
         
-        // Open user location popup after animation
         setTimeout(() => {
             if (userLocationMarker) {
                 userLocationMarker.openPopup();
@@ -1424,7 +1353,6 @@ function focusOnUser() {
         
         console.log('Focused on user location:', currentUserLocation);
     } else {
-        // User location not known yet, request it
         if (navigator.geolocation) {
             showWaterLevelAlert('Requesting your location...', 'info');
             requestUserLocation();
@@ -1510,23 +1438,8 @@ function createEnhancedPopupContent(lat, lng, locationName) {
 // === Get Location Name from Coordinates ===
 async function getLocationName(lat, lng) {
     try {
-        // For local development, just return coordinates to avoid CORS issues
         console.log('Location name lookup disabled for local development');
         return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        
-        /* Uncomment this for production with a proper CORS solution:
-        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-        const data = await response.json();
-        
-        if (data && data.display_name) {
-            const parts = data.display_name.split(',');
-            if (parts.length >= 2) {
-                return parts[0] + ', ' + parts[1];
-            }
-            return data.display_name;
-        }
-        return 'Unknown Location';
-        */
     } catch (error) {
         console.warn('Error getting location name:', error);
         return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
@@ -1709,14 +1622,12 @@ function handleSearch(e) {
     }
 }
 
-// === WORKING Mobile Search Location Function ===
+// === Search Location Function ===
 function searchLocation(query) {
     if (!map) return;
     
-    // Show loading state
     showWaterLevelAlert(`Searching for "${query}"...`, 'info');
     
-    // Use a reliable CORS proxy that actually works
     const proxyUrl = 'https://api.allorigins.win/raw?url=';
     const targetUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
     
@@ -1735,13 +1646,11 @@ function searchLocation(query) {
                 
                 console.log('✅ Search result found:', result.display_name);
                 
-                // Fly to the location
                 map.flyTo([lat, lon], 15, {
                     duration: 1.5,
                     easeLinearity: 0.25
                 });
                 
-                // Create a temporary marker
                 const marker = L.marker([lat, lon]).addTo(map)
                     .bindPopup(`
                         <div class="enhanced-popup-container">
@@ -1758,14 +1667,12 @@ function searchLocation(query) {
                     `)
                     .openPopup();
                 
-                // Remove marker after 10 seconds
                 setTimeout(() => {
                     if (marker && map.hasLayer(marker)) {
                         map.removeLayer(marker);
                     }
                 }, 10000);
                 
-                // Close search container and clear input
                 const searchContainer = document.querySelector('.search-container');
                 if (searchContainer) {
                     searchContainer.classList.remove('active');
@@ -1828,7 +1735,6 @@ function showWaterLevelAlert(message, type = 'info') {
     
     document.body.appendChild(alert);
     
-    // Only add to dashboard if it's a water level related alert
     if (message.includes('Water level') || message.includes('DANGER') || message.includes('ALERT')) {
         addWaterLevelAlert(message, type);
     }
@@ -1876,7 +1782,7 @@ function startRealTimeUpdates() {
     console.log('Setting up real-time database updates...');
     
     initRealTimeSubscriptions();
-    setupRealtimeUpdates(); // Add this line
+    setupRealtimeUpdates();
     
     setInterval(() => {
         loadStations();
@@ -1917,7 +1823,6 @@ function setupRealtimeUpdates() {
 function updateDisplay(newData) {
     console.log('📊 Updating display with new data:', newData);
     
-    // Show immediate notification
     if (newData.device_id && newData.water_level !== undefined) {
         const status = getWaterLevelStatus(newData.water_level);
         let alertMessage = `New data from ${newData.device_id}: ${newData.water_level} ft`;
@@ -1934,7 +1839,6 @@ function updateDisplay(newData) {
         showWaterLevelAlert(alertMessage, alertType);
     }
     
-    // Trigger stations reload to update everything
     if (loadStationsTimer) clearTimeout(loadStationsTimer);
     loadStationsTimer = setTimeout(() => loadStations(), 1000);
 }
@@ -1965,14 +1869,12 @@ async function loadInitialData() {
 // === Fetch Specific Hydropole Device Data ===
 async function fetchStationData(deviceId = 'HYDROPOLE_TEST_001') {
   try {
-    // Get station info
     const { data: station, error: stationError } = await supabase
       .from('monitoring_stations')
       .select('*')
       .eq('device_id', deviceId)
       .single();
 
-    // Get latest device data from hydropole_device
     const { data: deviceData, error: deviceError } = await supabase
       .from('hydropole_device')
       .select('*')
