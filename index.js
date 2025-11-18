@@ -20,6 +20,10 @@ let selectedStation = null;
 // Track previous water levels to detect changes
 let previousWaterLevels = new Map();
 
+// Debounce timer for loadStations to prevent excessive calls
+let loadStationsTimer = null;
+let isLoadingStations = false;
+
 // === Initialize everything when DOM is loaded ===
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded - initializing app');
@@ -31,7 +35,12 @@ document.addEventListener('DOMContentLoaded', function() {
     startRealTimeUpdates();
     requestUserLocation();
     initDashboard();
-     loadInitialData();
+    loadInitialData();
+    
+    // NEW: Set up hydropole device auto-refresh
+    setInterval(() => {
+        loadStations(); // This will refresh all data including hydropole_device
+    }, 30000); // Refresh every 30 seconds
     
     console.log('HydroPole App initialized successfully!');
 });
@@ -443,11 +452,7 @@ function hideMobileMenu() {
     console.log('Mobile menu closed');
 }
 
-// Debounce timer for loadStations to prevent excessive calls
-let loadStationsTimer = null;
-let isLoadingStations = false;
-
-// === Load Stations from flood_data, hydropole_devices, and monitoring_stations tables ===
+// === Load Stations from flood_data, hydropole_devices, hydropole_device and monitoring_stations tables ===
 async function loadStations() {
     if (isLoadingStations) {
         console.log('loadStations already in progress, skipping...');
@@ -472,11 +477,12 @@ async function loadStations() {
             refreshBtn.classList.add('loading');
         }
         
-        // Fetch data from all three tables in parallel
-        const [floodDataResult, devicesResult, stationsResult] = await Promise.all([
+        // Fetch data from all FOUR tables in parallel
+        const [floodDataResult, devicesResult, stationsResult, hydropoleDeviceResult] = await Promise.all([
             supabase.from('flood_data').select('*').order('timestamp', { ascending: false }).limit(100),
             supabase.from('hydropole_devices').select('*'),
-            supabase.from('monitoring_stations').select('*')
+            supabase.from('monitoring_stations').select('*'),
+            supabase.from('hydropole_device').select('*').order('created_at', { ascending: false }).limit(50) // NEW
         ]);
 
         // Check for errors
@@ -489,14 +495,18 @@ async function loadStations() {
         if (stationsResult.error) {
             console.error('Error loading monitoring_stations:', stationsResult.error);
         }
+        if (hydropoleDeviceResult.error) { // NEW
+            console.error('Error loading hydropole_device:', hydropoleDeviceResult.error);
+        }
 
         const floodData = floodDataResult.data || [];
         const devices = devicesResult.data || [];
         const stationInfo = stationsResult.data || [];
+        const hydropoleDeviceData = hydropoleDeviceResult.data || []; // NEW
 
-        console.log(`Loaded: ${floodData.length} flood records, ${devices.length} devices, ${stationInfo.length} station records`);
+        console.log(`Loaded: ${floodData.length} flood records, ${devices.length} devices, ${stationInfo.length} station records, ${hydropoleDeviceData.length} hydropole device records`);
 
-        if (floodData.length === 0 && devices.length === 0) {
+        if (floodData.length === 0 && devices.length === 0 && hydropoleDeviceData.length === 0) {
             if (stationsList) {
                 stationsList.innerHTML = `
                     <div class="no-stations">
@@ -546,6 +556,18 @@ async function loadStations() {
             }
         });
 
+        // ADD THIS: Process hydropole_device data
+        const hydropoleDeviceMap = new Map();
+        hydropoleDeviceData.forEach(record => {
+            const deviceId = record.device_id;
+            if (!deviceId) return;
+            
+            if (!hydropoleDeviceMap.has(deviceId) || 
+                new Date(record.created_at) > new Date(hydropoleDeviceMap.get(deviceId).created_at)) {
+                hydropoleDeviceMap.set(deviceId, record);
+            }
+        });
+
         // Store current water levels before update for comparison
         const currentWaterLevels = new Map();
         stations.forEach(station => {
@@ -554,25 +576,39 @@ async function loadStations() {
             }
         });
 
-        // Combine data from all three tables
+        // Combine data from all four tables
         const newStations = [];
         
-        // Process devices that have flood data
-        latestFloodDataMap.forEach((floodRecord, deviceId) => {
+        // Process devices that have flood data OR hydropole_device data
+        const allDeviceIds = new Set([
+            ...Array.from(latestFloodDataMap.keys()),
+            ...Array.from(hydropoleDeviceMap.keys()),
+            ...Array.from(deviceMap.keys())
+        ]);
+        
+        allDeviceIds.forEach(deviceId => {
+            const floodRecord = latestFloodDataMap.get(deviceId);
+            const hydropoleRecord = hydropoleDeviceMap.get(deviceId); // NEW
             const device = deviceMap.get(deviceId);
             const station = stationInfoMap.get(deviceId);
             
-            // Parse water level from database
+            // Prefer hydropole_device data if available
+            const sourceRecord = hydropoleRecord || floodRecord;
+            
+            // Parse water level - check hydropole_device first
             let waterLevel = null;
-            if (floodRecord.water_level !== null && floodRecord.water_level !== undefined) {
+            if (hydropoleRecord?.water_level !== null && hydropoleRecord?.water_level !== undefined) {
+                waterLevel = parseFloat(hydropoleRecord.water_level);
+            } else if (floodRecord?.water_level !== null && floodRecord?.water_level !== undefined) {
                 waterLevel = parseFloat(floodRecord.water_level);
-                if (isNaN(waterLevel)) {
-                    console.warn(`Invalid water_level for device ${deviceId}:`, floodRecord.water_level);
-                    waterLevel = null;
-                }
             }
             
-            // Get coordinates
+            if (waterLevel !== null && isNaN(waterLevel)) {
+                console.warn(`Invalid water_level for device ${deviceId}:`, waterLevel);
+                waterLevel = null;
+            }
+            
+            // Get coordinates - prioritize in this order: station info, device info, flood data
             let lat = null;
             let lng = null;
             
@@ -608,74 +644,39 @@ async function loadStations() {
             }
             
             const deviceName = station?.name || device?.device_name || `Station ${deviceId}`;
-            const location = station?.location || getLocationFromStatus(floodRecord.status);
+            const location = station?.location || getLocationFromStatus(sourceRecord?.status);
+            
+            // Determine status based on available data
+            let status = 'unknown';
+            if (sourceRecord) {
+                status = sourceRecord.status || 'unknown';
+            }
+            
+            // Use hydropole_device timestamp if available, otherwise use flood_data timestamp
+            let lastCommunication = null;
+            if (hydropoleRecord?.created_at) {
+                lastCommunication = hydropoleRecord.created_at;
+            } else if (floodRecord?.timestamp || floodRecord?.created_at) {
+                lastCommunication = floodRecord.timestamp || floodRecord.created_at;
+            }
             
             newStations.push({
                 id: deviceId,
-                record_id: floodRecord.id,
+                record_id: sourceRecord?.id || deviceId,
                 device_id: deviceId,
                 name: deviceName,
                 location: location,
                 latitude: lat,
                 longitude: lng,
                 water_level: waterLevel,
-                status: floodRecord.status || 'unknown',
-                message: floodRecord.message || null,
-                battery_level: floodRecord.battery_level !== null && floodRecord.battery_level !== undefined ? parseFloat(floodRecord.battery_level) : null,
-                signal_strength: floodRecord.signal_strength !== null && floodRecord.signal_strength !== undefined ? parseFloat(floodRecord.signal_strength) : null,
-                last_communication: floodRecord.timestamp || floodRecord.created_at || new Date().toISOString(),
-                sim_number: device?.sim_number || null
+                status: status,
+                message: sourceRecord?.message || null,
+                battery_level: sourceRecord?.battery_level !== null && sourceRecord?.battery_level !== undefined ? parseFloat(sourceRecord.battery_level) : null,
+                signal_strength: sourceRecord?.signal_strength !== null && sourceRecord?.signal_strength !== undefined ? parseFloat(sourceRecord.signal_strength) : null,
+                last_communication: lastCommunication,
+                sim_number: device?.sim_number || null,
+                data_source: hydropoleRecord ? 'hydropole_device' : (floodRecord ? 'flood_data' : 'device_only') // Track data source
             });
-        });
-        
-        // Also include devices that don't have flood data yet
-        devices.forEach(device => {
-            if (device.device_id && !latestFloodDataMap.has(device.device_id)) {
-                const station = stationInfoMap.get(device.device_id);
-                
-                let lat = null;
-                let lng = null;
-                
-                if (station) {
-                    lat = parseFloat(station.lat || station.latitude);
-                    lng = parseFloat(station.lng || station.longitude || station.long);
-                }
-                
-                if ((!lat || isNaN(lat)) && device) {
-                    lat = parseFloat(device.current_lat || device.latitude);
-                    lng = parseFloat(device.current_lng || device.current_long || device.longitude || device.lng);
-                }
-                
-                // Special handling for HYDROPOLE_001
-                if (device.device_id === 'HYDROPOLE_001') {
-                    if (!lat || isNaN(lat)) {
-                        lat = 14.847090;
-                        lng = 120.813300;
-                    }
-                } else if ((!lat || isNaN(lat)) && device.device_id) {
-                    lat = 14.847090;
-                }
-                
-                if ((!lng || isNaN(lng)) && device.device_id) {
-                    lng = 120.813300;
-                }
-                
-                newStations.push({
-                    id: device.device_id,
-                    device_id: device.device_id,
-                    name: station?.name || device.device_name || `Station ${device.device_id}`,
-                    location: station?.location || device.device_name || 'Device Location',
-                    latitude: lat,
-                    longitude: lng,
-                    water_level: null,
-                    status: 'unknown',
-                    message: null,
-                    battery_level: null,
-                    signal_strength: null,
-                    last_communication: null,
-                    sim_number: device.sim_number || null
-                });
-            }
         });
 
         // Update stations array
@@ -698,7 +699,8 @@ async function loadStations() {
                     water_level: hydroPole001.water_level,
                     latitude: hydroPole001.latitude,
                     longitude: hydroPole001.longitude,
-                    status: getWaterLevelStatus(hydroPole001.water_level)
+                    status: getWaterLevelStatus(hydroPole001.water_level),
+                    data_source: hydroPole001.data_source
                 });
             }
         }
@@ -827,6 +829,9 @@ function renderStationsList() {
             ? parseFloat(station.water_level).toFixed(2) + ' ft' 
             : 'No data';
         
+        // Add data source indicator
+        const dataSource = station.data_source ? ` (${station.data_source})` : '';
+        
         return `
         <div class="station-item ${selectedStation?.id === station.id ? 'active' : ''}" 
              data-station-id="${station.id}"
@@ -834,7 +839,7 @@ function renderStationsList() {
              data-lng="${station.longitude}">
             <div class="station-info">
                 <div class="station-name">${station.name || 'Unnamed Station'}</div>
-                <div class="station-location">${station.location || 'Location not set'}</div>
+                <div class="station-location">${station.location || 'Location not set'}${dataSource}</div>
                 <div class="station-coordinates">${parseFloat(station.latitude).toFixed(4)}, ${parseFloat(station.longitude).toFixed(4)}</div>
                 <div class="station-data">
                     <span class="water-level-badge ${status}">${waterLevel}</span>
@@ -1006,6 +1011,9 @@ function createEnhancedStationPopupContent(station, locationName, waterLevel, st
         }
     }
     
+    // Add data source info
+    const dataSourceInfo = station.data_source ? ` • Data from ${station.data_source}` : '';
+    
     return `
         <div class="enhanced-popup-container">
             <div class="enhanced-popup-header">
@@ -1014,7 +1022,7 @@ function createEnhancedStationPopupContent(station, locationName, waterLevel, st
                 </div>
                 <div class="enhanced-popup-title-section">
                     <div class="enhanced-popup-title">${station.name || 'Monitoring Station'}</div>
-                    <div class="enhanced-popup-subtitle">${station.device_id === 'HYDROPOLE_001' ? 'Primary Monitoring Station' : 'Live Monitoring Station'}</div>
+                    <div class="enhanced-popup-subtitle">${station.device_id === 'HYDROPOLE_001' ? 'Primary Monitoring Station' : 'Live Monitoring Station'}${dataSourceInfo}</div>
                 </div>
             </div>
             
@@ -1241,7 +1249,24 @@ function initRealTimeSubscriptions() {
         )
         .subscribe();
     
-    console.log('✅ Real-time subscriptions initialized for flood_data, hydropole_devices, and monitoring_stations');
+    // NEW: Subscribe to hydropole_device table
+    const hydropoleDeviceSubscription = supabase
+        .channel('hydropole_device_changes')
+        .on('postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'hydropole_device'
+            },
+            (payload) => {
+                console.log('Real-time hydropole_device update:', payload);
+                if (loadStationsTimer) clearTimeout(loadStationsTimer);
+                loadStationsTimer = setTimeout(() => loadStations(), 500);
+            }
+        )
+        .subscribe();
+    
+    console.log('✅ Real-time subscriptions initialized for flood_data, hydropole_devices, monitoring_stations, and hydropole_device');
 }
 
 // === Handle Real-time Flood Data Updates ===
@@ -1937,6 +1962,38 @@ async function loadInitialData() {
     }
 }
 
+// === Fetch Specific Hydropole Device Data ===
+async function fetchStationData(deviceId = 'HYDROPOLE_TEST_001') {
+  try {
+    // Get station info
+    const { data: station, error: stationError } = await supabase
+      .from('monitoring_stations')
+      .select('*')
+      .eq('device_id', deviceId)
+      .single();
+
+    // Get latest device data from hydropole_device
+    const { data: deviceData, error: deviceError } = await supabase
+      .from('hydropole_device')
+      .select('*')
+      .eq('device_id', deviceId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (stationError) console.error('Station error:', stationError);
+    if (deviceError) console.error('Device error:', deviceError);
+
+    if (station && deviceData && deviceData.length > 0) {
+      console.log('Hydropole device data:', { station, deviceData: deviceData[0] });
+      return { station, deviceData: deviceData[0] };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching hydropole device data:', error);
+    return null;
+  }
+}
+
 // === Make functions globally available ===
 window.selectStationFromPopup = function(stationId) {
     console.log('Selecting station from popup, ID:', stationId);
@@ -1959,3 +2016,4 @@ window.showWaterLevelAlert = showWaterLevelAlert;
 window.hideMobileMenu = hideMobileMenu;
 window.loadStations = loadStations;
 window.clearNotifications = clearNotifications;
+window.fetchStationData = fetchStationData;
