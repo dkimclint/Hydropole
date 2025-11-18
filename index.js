@@ -1,13 +1,8 @@
-// ================================================================
-// HYDRO-POLE MONITOR - FIXED FOR CDN
-// ================================================================
-
-// Supabase configuration - USING CDN GLOBAL VARIABLE
 const supabaseUrl = 'https://qhulkelhbhllcwwandes.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWxrZWxoYmhsbGN3d2FuZGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTg2MjUsImV4cCI6MjA3NjI5NDYyNX0.42UGFleZGnrE0GCc3F8jU69ernTCRu6np-uqDD5G2Rk';
 
-// Create Supabase client using CDN global variable
-const supabase = supabaseClient.createClient(supabaseUrl, supabaseKey);
+// CORRECT VARIABLE NAME: Use 'supabase' not 'supabaseClient'
+const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 console.log('✅ Supabase configured with CDN');
 
@@ -1923,4 +1918,5 @@ window.hideMobileMenu = hideMobileMenu;
 window.loadStations = loadStations;
 window.clearNotifications = clearNotifications;
 window.fetchStationData = fetchStationData;
+
 
