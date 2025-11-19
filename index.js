@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     startRealTimeUpdates();
     requestUserLocation();
     initDashboard();
-     loadInitialData();
+    loadInitialData();
     
     console.log('HydroPole App initialized successfully!');
 });
